@@ -35,7 +35,8 @@ namespace Pulsar4X.Client
             {typeof(GotoSystemBlankMenuHelper), "Go to system"},
             {typeof(SelectPrimaryBlankMenuHelper), "Select as primary"},
             {typeof(NavWindow), "Nav Window"},
-            {typeof(OrdersListWindow), "Orders Window"}
+            {typeof(OrdersListWindow), "Orders Window"},
+            {typeof(ColonyManagementWindow), "Open Colony" }
         };
         internal bool IsGameLoaded => GameClient != null;
 
