@@ -8,6 +8,28 @@ using Pulsar4X.Client.Interface.Widgets;
 
 namespace Pulsar4X.Client
 {
+    internal static class ColonyManagementWindowExtensions
+    {
+        /// <summary>
+        /// Opens the Colony Management window and selects the specified colony by ID and system ID.
+        /// </summary>
+        /// <param name="manager">The window manager</param>
+        /// <param name="colonyId">The ID of the colony to select</param>
+        /// <param name="systemId">The ID of the system containing the colony</param>
+        /// <returns>The opened Colony Management window</returns>
+        public static ColonyManagementWindow OpenColony(this WindowManager manager, int colonyId, string systemId)
+        {
+            if(!manager.TryGetUniqueWindow<ColonyManagementWindow>(out var window))
+            {
+                window = manager.AddUniqueWindow<ColonyManagementWindow>();
+            }
+
+            window.SelectColony(colonyId, systemId);
+            window.SetActive(true);
+            return window;
+        }
+    }
+
     public class ColonyManagementWindow : UniquePulsarGuiWindow<ColonyManagementWindow>
     {
         private Dictionary<string, bool> isExpanded = new();

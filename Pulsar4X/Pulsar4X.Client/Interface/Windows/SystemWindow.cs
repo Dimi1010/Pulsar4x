@@ -138,8 +138,7 @@ public class SystemWindow : UniquePulsarGuiWindow<SystemWindow>
             var colonyName = colony.GetView<NameView>()?.Name ?? "Colony";
             if(ImGui.SmallButton(colonyName + "###" + colony.Id))
             {
-                ColonyManagementWindow.GetInstance().SetActive(true);
-                ColonyManagementWindow.GetInstance().SelectColony(colony.Id, _uiState.SelectedStarSystemId);
+                WindowManager?.OpenColony(colony.Id, _uiState.SelectedStarSystemId);
             }
         }
         else

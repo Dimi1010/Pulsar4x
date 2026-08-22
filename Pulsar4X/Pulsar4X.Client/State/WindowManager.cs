@@ -103,6 +103,11 @@ namespace Pulsar4X.Client
             return window;
         }
 
+        internal T AddUniqueWindow<T>() where T : UniquePulsarGuiWindow, new()
+        {
+            return AddUniqueWindow(new T());
+        }
+
         internal T AddUniqueWindow<T>(T window) where T : UniquePulsarGuiWindow
         {
             AddWindow(window);
