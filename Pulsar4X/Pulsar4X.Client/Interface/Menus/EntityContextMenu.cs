@@ -4,18 +4,22 @@ using ImGuiNET;
 namespace Pulsar4X.Client
 {
 
-    public class EntityContextMenu
+    public class EntityContextMenu(GlobalUIState state)
     {
-        GlobalUIState _state;
+        GlobalUIState _state = state;
         EntityState? _entityState;
 
-        public EntityContextMenu(GlobalUIState state, int entityGuid)
+        public void SetEntity(int entityGuid)
         {
-            _state = state;
-            var systemId = state.SelectedStarSystemId;
-            var snapshot = state.GameClient?.Galaxy.GetSystem(systemId)?.GetEntity(entityGuid);
+            var systemId = _state.SelectedStarSystemId;
+            var snapshot = _state.GameClient?.Galaxy.GetSystem(systemId)?.GetEntity(entityGuid);
             if (snapshot != null)
                 _entityState = new EntityState(snapshot, systemId);
+        }
+
+        public void ClearEntity()
+        {
+            _entityState = null;
         }
 
         internal void Display()

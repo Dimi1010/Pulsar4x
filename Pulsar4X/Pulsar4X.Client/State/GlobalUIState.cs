@@ -103,7 +103,7 @@ namespace Pulsar4X.Client
         internal string SelectedStarSystemId { get; private set; }
         internal SystemMapRendering? SelectedSysMapRender => GalacticMap == null ? null : GalacticMap.SelectedSysMapRender;
         internal DateTime PrimarySystemDateTime;
-        internal EntityContextMenu? ContextMenu { get; set; }
+        internal EntityContextMenu ContextMenu { get; init; }
         internal Camera Camera;
         internal SDL3Window ViewPort { get; private set; }
 
@@ -153,6 +153,7 @@ namespace Pulsar4X.Client
         internal GlobalUIState(SDL3Window viewport)
         {
             ViewPort = viewport;
+            ContextMenu = new EntityContextMenu(this);
             UniquePulsarGuiWindow._uiState = this;
             var windowPtr = viewport.Window;
 
@@ -371,7 +372,7 @@ namespace Pulsar4X.Client
             LastClickedEntity = null;
             PrimaryEntity = null;
             SelectedStarSystemId = "";
-            ContextMenu = null;
+            ContextMenu.ClearEntity();
             ActiveWindow = null;
             SMenabled = false;
         }

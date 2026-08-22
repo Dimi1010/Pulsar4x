@@ -83,7 +83,7 @@ namespace Pulsar4X.Client
             // Alt click
             if (_clickedAlt)
             {
-                _state.ContextMenu = new EntityContextMenu(_state, EntityId);
+                _state.ContextMenu.SetEntity(EntityId);
                 ImGui.OpenPopup(_name + "##Alt");
                 _clickedAlt = false;
             }
