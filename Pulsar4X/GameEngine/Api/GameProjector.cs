@@ -93,7 +93,7 @@ namespace Pulsar4X.Engine.Api
         {
             var views = new List<IComponentView>(ViewProjectors.Length);
             foreach (var project in ViewProjectors)
-                if (project(entity, factionId) is { } view)
+                if (project(_game, entity, factionId) is { } view)
                     views.Add(view);
 
             return new EntitySnapshot
@@ -150,24 +150,24 @@ namespace Pulsar4X.Engine.Api
 
         // ----- entity views: add a view by adding one entry here (+ a To*View helper if it needs logic) -----
 
-        private static readonly Func<Entity, int, IComponentView?>[] ViewProjectors =
+        private static readonly Func<Game, Entity, int, IComponentView?>[] ViewProjectors =
         {
-            (e, f) => e.TryGetDataBlob<NameDB>(out var n) ? new NameView(n.GetName(f)) : null,
-            (e, _) => e.TryGetDataBlob<Pulsar4X.Movement.PositionDB>(out var p) ? ToPositionView(p) : null,
-            (e, _) => e.TryGetDataBlob<OrbitDB>(out var o) ? ToOrbitView(o) : null,
-            (e, _) => e.TryGetDataBlob<MassVolumeDB>(out var m)
+            (g, e, f) => e.TryGetDataBlob<NameDB>(out var n) ? new NameView(n.GetName(f)) : null,
+            (g, e, _) => e.TryGetDataBlob<Movement.PositionDB>(out var p) ? ToPositionView(p) : null,
+            (g, e, _) => e.TryGetDataBlob<OrbitDB>(out var o) ? ToOrbitView(o) : null,
+            (g, e, _) => e.TryGetDataBlob<MassVolumeDB>(out var m)
                 ? new MassVolumeView(m.MassTotal, m.RadiusInM, m.DensityDry_gcm) { DryMassKg = m.MassDry } : null,
             // Projected even when the queue is empty: its presence marks the entity as orderable,
             // which gates the order-queue UI.
-            (e, f) => e.FactionOwnerID == f && e.HasDataBlob<OrderableDB>()
+            (g, e, f) => IsFactionOwnerOrSpaceMaster(g, e, f) && e.HasDataBlob<OrderableDB>()
                 ? new OrdersView(ProjectOrders(e)) : null,
-            (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<Pulsar4X.Movement.NewtonThrustAbilityDB>(out var th)
+            (g, e, f) => IsFactionOwnerOrSpaceMaster(g, e, f) && e.TryGetDataBlob<Movement.NewtonThrustAbilityDB>(out var th)
                 ? ToThrustView(th, e, f) : null,
-            (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<Pulsar4X.Movement.WarpAbilityDB>(out var wa)
+            (g, e, f) => IsFactionOwnerOrSpaceMaster(g, e, f) && e.TryGetDataBlob<Movement.WarpAbilityDB>(out var wa)
                 ? new WarpAbilityView(wa.MaxSpeed) : null,
-            (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<Pulsar4X.Energy.EnergyGenAbilityDB>(out var eg)
+            (g, e, f) => IsFactionOwnerOrSpaceMaster(g, e, f) && e.TryGetDataBlob<Energy.EnergyGenAbilityDB>(out var eg)
                 ? ToEnergyView(eg) : null,
-            (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<Pulsar4X.Movement.WarpMovingDB>(out var wm)
+            (g, e, f) => IsFactionOwnerOrSpaceMaster(g, e, f) && e.TryGetDataBlob<Movement.WarpMovingDB>(out var wm)
                 ? new WarpMovingView(wm.CurrentNonNewtonionVectorMS.Length())
                 {
                     EntryPointAbsolute = ToVec3(wm.EntryPointAbsolute),
@@ -176,41 +176,46 @@ namespace Pulsar4X.Engine.Api
                     TargetEntityId = wm.TargetEntity?.Id,
                 }
                 : null,
-            (e, _) => e.TryGetDataBlob<SystemBodyInfoDB>(out var b) ? ToBodyView(b) : null,
-            (e, _) => e.TryGetDataBlob<StarInfoDB>(out var s) ? ToStarView(s) : null,
-            (e, f) => e.TryGetDataBlob<ColonyInfoDB>(out var c) ? ToColonyView(c, e, f) : null,
-            (e, _) => e.TryGetDataBlob<AtmosphereDB>(out var a) ? ToAtmosphereView(a, a.OwningEntity?.Manager?.Game) : null,
+            (g, e, _) => e.TryGetDataBlob<SystemBodyInfoDB>(out var b) ? ToBodyView(b) : null,
+            (g, e, _) => e.TryGetDataBlob<StarInfoDB>(out var s) ? ToStarView(s) : null,
+            (g, e, f) => e.TryGetDataBlob<ColonyInfoDB>(out var c) ? ToColonyView(c, e, f) : null,
+            (g, e, _) => e.TryGetDataBlob<AtmosphereDB>(out var a) ? ToAtmosphereView(a, a.OwningEntity?.Manager?.Game) : null,
             // Non-owners see a ship's class but not its internals (health, armor, crew).
-            (e, f) => e.TryGetDataBlob<ShipInfoDB>(out var sh)
-                ? (e.FactionOwnerID == f ? ToShipView(sh, e, f) : new ShipView(sh.Design.Name))
+            (g, e, f) => e.TryGetDataBlob<ShipInfoDB>(out var sh)
+                ? (IsFactionOwnerOrSpaceMaster(g, e, f) ? ToShipView(sh, e, f) : new ShipView(sh.Design.Name))
                 : null,
-            (e, f) => e.TryGetDataBlob<GeoSurveyableDB>(out var g) ? ToGeoSurveyView(g, f) : null,
-            (e, _) => e.HasDataBlob<ColonizeableDB>() ? new ColonizableView() : null,
-            (e, f) => e.TryGetDataBlob<MineralsDB>(out var md) ? ToMineralDepositsView(md, e, f) : null,
-            (e, f) => e.TryGetDataBlob<JPSurveyableDB>(out var j) ? ToGravSurveyView(j, f) : null,
+            (g, e, f) => e.TryGetDataBlob<GeoSurveyableDB>(out var gs) ? ToGeoSurveyView(gs, f) : null,
+            (g, e, _) => e.HasDataBlob<ColonizeableDB>() ? new ColonizableView() : null,
+            (g, e, f) => e.TryGetDataBlob<MineralsDB>(out var md) ? ToMineralDepositsView(md, e, f) : null,
+            (g, e, f) => e.TryGetDataBlob<JPSurveyableDB>(out var j) ? ToGravSurveyView(j, f) : null,
             // A jump point is only part of a faction's world once that faction has discovered it.
-            (e, f) => e.TryGetDataBlob<JumpPointDB>(out var jp) && jp.IsDiscovered.Contains(f) ? new JumpPointView() : null,
+            (g, e, f) => e.TryGetDataBlob<JumpPointDB>(out var jp) && jp.IsDiscovered.Contains(f) ? new JumpPointView() : null,
             // The views below expose an entity's internals (cargo, installations, mining economics),
             // so they are only projected for the owning faction.
-            (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<CargoStorageDB>(out var cs) ? ToCargoStorageView(cs, e) : null,
-            (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<InfrastructureDB>(out var inf)
+            (g, e, f) => IsFactionOwnerOrSpaceMaster(g, e, f) && e.TryGetDataBlob<CargoStorageDB>(out var cs) ? ToCargoStorageView(cs, e) : null,
+            (g, e, f) => IsFactionOwnerOrSpaceMaster(g, e, f) && e.TryGetDataBlob<InfrastructureDB>(out var inf)
                 ? new InfrastructureView(inf.CapacityProvided, inf.CapacityRequired, inf.CapacityAvailable, inf.Efficiency,
                     HasInstalledInfrastructure(e))
                 : null,
-            (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<ComponentInstancesDB>(out var ci) ? ToInstallationsView(ci, e) : null,
-            (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<ColonyInfoDB>(out var col) ? ToColonyMiningView(col, e, f) : null,
-            (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<NavalAcademyDB>(out var na) ? ToNavalAcademyView(na) : null,
-            (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<IndustryAbilityDB>(out var ind) ? ToIndustryView(ind, e, f) : null,
-            (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<LocalConstructionDB>(out var lc) ? ToConstructionView(lc, e, f) : null,
+            (g, e, f) => IsFactionOwnerOrSpaceMaster(g, e, f) && e.TryGetDataBlob<ComponentInstancesDB>(out var ci) ? ToInstallationsView(ci, e) : null,
+            (g, e, f) => IsFactionOwnerOrSpaceMaster(g, e, f) && e.TryGetDataBlob<ColonyInfoDB>(out var col) ? ToColonyMiningView(col, e, f) : null,
+            (g, e, f) => IsFactionOwnerOrSpaceMaster(g, e, f) && e.TryGetDataBlob<NavalAcademyDB>(out var na) ? ToNavalAcademyView(na) : null,
+            (g, e, f) => IsFactionOwnerOrSpaceMaster(g, e, f) && e.TryGetDataBlob<IndustryAbilityDB>(out var ind) ? ToIndustryView(ind, e, f) : null,
+            (g, e, f) => IsFactionOwnerOrSpaceMaster(g, e, f) && e.TryGetDataBlob<LocalConstructionDB>(out var lc) ? ToConstructionView(lc, e, f) : null,
             // A lab's queue/economics are internal to its owner; other factions just see the entity.
-            (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<ResearcherDB>(out var r) ? ToResearcherView(r, e, f) : null,
-            (e, f) => e.FactionOwnerID == f && e.HasDataBlob<Pulsar4X.Weapons.FireControlAbilityDB>() ? ToFireControlView(e) : null,
-            (e, _) => e.TryGetDataBlob<Pulsar4X.Movement.NewtonMoveDB>(out var nm) ? ToNewtonMoveView(nm, e) : null,
-            (e, _) => e.TryGetDataBlob<Pulsar4X.Movement.NewtonSimpleMoveDB>(out var ns) ? ToNewtonSimpleMoveView(ns) : null,
-            (e, _) => e.HasDataBlob<Pulsar4X.Weapons.ProjectileInfoDB>() ? new ProjectileView() : null,
-            (e, _) => e.TryGetDataBlob<Pulsar4X.Weapons.BeamInfoDB>(out var beam)
+            (g, e, f) => IsFactionOwnerOrSpaceMaster(g, e, f) && e.TryGetDataBlob<ResearcherDB>(out var r) ? ToResearcherView(r, e, f) : null,
+            (g, e, f) => IsFactionOwnerOrSpaceMaster(g, e, f) && e.HasDataBlob<Weapons.FireControlAbilityDB>() ? ToFireControlView(e) : null,
+            (g, e, _) => e.TryGetDataBlob<Movement.NewtonMoveDB>(out var nm) ? ToNewtonMoveView(nm, e) : null,
+            (g, e, _) => e.TryGetDataBlob<Movement.NewtonSimpleMoveDB>(out var ns) ? ToNewtonSimpleMoveView(ns) : null,
+            (g, e, _) => e.HasDataBlob<Weapons.ProjectileInfoDB>() ? new ProjectileView() : null,
+            (g, e, _) => e.TryGetDataBlob<Weapons.BeamInfoDB>(out var beam)
                 ? new BeamView(ToVec3(beam.Positions.Item1), ToVec3(beam.Positions.Item2)) : null,
         };
+
+        private static bool IsFactionOwnerOrSpaceMaster(Game game, Entity entity, int factionId)
+        {
+            return entity.FactionOwnerID == factionId || game.GameMasterFaction.Id == factionId;
+        }
 
         private static Vec3 ToVec3(Pulsar4X.Orbital.Vector3 v) => new(v.X, v.Y, v.Z);
 
